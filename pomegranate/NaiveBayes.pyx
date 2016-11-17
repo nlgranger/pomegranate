@@ -1,35 +1,28 @@
 # NaiveBayes.pyx
 # Authors: Jacob Schreiber <jmschreiber91@gmail.com>
 
-"""
-Naive Bayes estimator, for anything with a log_probability method.
-"""
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
 
+import json
 import numpy
 cimport numpy
+from joblib import Parallel
+from joblib import delayed
 
-from libc.math cimport exp as cexp
-
+from .base cimport Model
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
 from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 
-from .base cimport Model
-from .base cimport GraphModel
-
-from libc.stdlib cimport calloc
-from libc.stdlib cimport free
-
 from .utils cimport pair_lse
 from .utils import _convert
-import json
 
-import sys
 
-from joblib import Parallel
-from joblib import delayed
+cdef double NEGINF = float("-inf")
+
 
 cpdef numpy.ndarray _check_input(X, dict keymap):
 	"""Check the input to make sure that it is a properly formatted array."""
@@ -59,19 +52,15 @@ cpdef numpy.ndarray _check_input(X, dict keymap):
 
 	return X_ndarray
 
-cdef double NEGINF = float("-inf")
 
-cdef class NaiveBayes( Model ):
+cdef class NaiveBayes(Model):
 	"""A Naive Bayes model, a supervised alternative to GMM.
 
 	Parameters
 	----------
 	models : list or constructor
-		Must either be a list of initialized distribution/model objects, or
-		the constructor for a distribution object:
-
-		* Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
-		* Constructor : NaiveBayes(NormalDistribution)
+		Either a list of initialized distribution/model objects, or the
+		constructor for a distribution object.
 
 	weights : list or numpy.ndarray or None, default None
 		The prior probabilities of the components. If None is passed in then
@@ -88,20 +77,20 @@ cdef class NaiveBayes( Model ):
 	Examples
 	--------
 	>>> from pomegranate import *
-	>>> clf = NaiveBayes( NormalDistribution )
-	>>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
-	>>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
-	>>> clf.fit(X, y)
-	>>> clf.predict_proba([6])
-	array([[ 0.01973451,  0.98026549]])
-
-	>>> from pomegranate import *
 	>>> clf = NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
 	>>> clf.predict_log_proba([[0], [1], [2], [-1]])
 	array([[-1.1836569 , -0.36550972],
 		   [-0.79437677, -0.60122959],
 		   [-0.26751248, -1.4493653 ],
 		   [-1.09861229, -0.40546511]])
+
+	>>> from pomegranate import *
+	>>> clf = NaiveBayes( NormalDistribution )
+	>>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
+	>>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
+	>>> clf.fit(X, y)
+	>>> clf.predict_proba([6])
+	array([[ 0.01973451,  0.98026549]])
 	"""
 
 	cdef object distribution_callable
@@ -116,8 +105,10 @@ cdef class NaiveBayes( Model ):
 	cdef dict keymap
 
 	def __init__( self, distributions=None, weights=None ):
-		if not callable(distributions) and not isinstance(distributions, (list, numpy.ndarray)):
-			raise ValueError("must either give initial distributions or constructor")
+		if not callable(distributions) \
+				and not isinstance(distributions, (list, numpy.ndarray)):
+			raise ValueError("must either give initial distributions "
+			                 "or constructor")
 
 		self.d = 0
 		self.hmm = 0
@@ -127,11 +118,13 @@ cdef class NaiveBayes( Model ):
 		else:
 			self.n = len(distributions)
 			if len(distributions) < 2:
-				raise ValueError("must have at least two distributions for general mixture models")
+				raise ValueError("must have at least two distributions for "
+				                 "naive Bayes models")
 
 			for dist in distributions:
 				if callable(dist):
-					raise TypeError("must have initialized distributions in list")
+					raise TypeError("must have initialized distributions in "
+					                "list")
 				elif self.d == 0:
 					self.d = dist.d
 				elif self.d != dist.d:
