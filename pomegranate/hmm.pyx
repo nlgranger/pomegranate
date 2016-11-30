@@ -282,7 +282,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		self.name = state['name']
 
 		# Load all the states from JSON formatted strings
-		states = state['states']
+		states = state['nodes']
 		for i, j in state['distribution ties']:
 			# Tie appropriate states together
 			states[i].tie( states[j] )
@@ -3113,7 +3113,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		model = HiddenMarkovModel( str(d['name']) )
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['nodes'] ]
 		for i, j in d['distribution ties']:
 			# Tie appropriate states together
 			states[i].tie( states[j] )

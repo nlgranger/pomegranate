@@ -273,7 +273,7 @@ cdef class FiniteStateMachine( GraphModel ):
 		model = FiniteStateMachine( str(d['name']) )
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['nodes'] ]
 
 		# Add all the states to the model
 		model.add_states( states )

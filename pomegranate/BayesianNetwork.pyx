@@ -75,7 +75,7 @@ cdef class BayesianNetwork( GraphModel ):
 	-1.71479842809
 	>>> print model.predict_proba({'s2' : 'A'})
 	array([ {
-	    "frozen" :false,
+	    "is_frozen" :false,
 	    "class" :"Distribution",
 	    "parameters" :[
 	        {
@@ -86,7 +86,7 @@ cdef class BayesianNetwork( GraphModel ):
 	    "name" :"DiscreteDistribution"
 	},
 	       {
-	    "frozen" :false,
+	    "is_frozen" :false,
 	    "class" :"Distribution",
 	    "parameters" :[
 	        {
@@ -603,7 +603,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['nodes'] ]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:

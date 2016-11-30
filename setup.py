@@ -1,5 +1,4 @@
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 import numpy as np
 
 try:
@@ -31,7 +30,7 @@ if not use_cython:
 else:
     extensions = [
             Extension( "pomegranate.*", 
-                       [ "pomegranate/*.pyx" ], 
+                       [ "pomegranate/*.pyx" ],
                        include_dirs=[np.get_include()] )
     ]
 
@@ -54,4 +53,7 @@ setup(
         "networkx >= 1.8.1",
         "scipy >= 0.17.0"
     ],
+    package_data={
+        'pomegranate': ['*.pxd']
+    }
 )

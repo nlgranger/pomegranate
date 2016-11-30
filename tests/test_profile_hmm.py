@@ -477,7 +477,7 @@ def test_to_json():
 
 	assert_equal( b['name'], 'Global Alignment' )
 	assert_equal( len(b['edges']), 29 )
-	assert_equal( len(b['states']), 12 )
+	assert_equal( len(b['nodes']), 12 )
 	assert_equal( b['silent_index'], 7 )
 
 

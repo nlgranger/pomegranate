@@ -1,24 +1,28 @@
 # base.pxd
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport numpy
+cimport numpy as np
 
-ctypedef numpy.npy_intp SIZE_t
+ctypedef np.float64_t DOUBLE_t
+# ctypedef np.intp_t INTP_t
+# # ctypedef fused SYMBOL_t:
+# # 	DOUBLE_t
+# # 	INTP_t
+# ctypedef DOUBLE_t SYMBOL_t
+# ctypedef np.intp_t LABEL_t
 
 
 cdef class Model(object):
-	cdef public str name
 	cdef public int d
-	cdef public bint frozen
-	cdef public str model
+	cdef public bint is_frozen
+	cdef public bint is_vl
 
-	cdef double _log_probability( self, double symbol ) nogil
-	cdef double _mv_log_probability( self, double* symbol ) nogil
-	cdef double _vl_log_probability( self, double* symbol, int n ) nogil
-	cdef void _v_log_probability( self, double* symbol,
-	                              double* log_probability, int n ) nogil
-	cdef double _summarize( self, double* items, double* weights,
-	                        SIZE_t n ) nogil
+	cdef void log_probability_fast(self, DOUBLE_t[:, :] symbols,
+	                               int n, int[:] offsets,
+	                               DOUBLE_t[:] log_probabilities) nogil
+
+	cdef void summarize_fast(self, DOUBLE_t[:, :] X, DOUBLE_t[:] weights,
+	                         int n, int[:] offsets) nogil
 
 
 cdef class GraphModel(Model):
@@ -30,4 +34,4 @@ cdef class GraphModel(Model):
 cdef class State(object):
 	cdef public Model distribution
 	cdef public str name
-	cdef public double weight
+	cdef public DOUBLE_t weight

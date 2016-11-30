@@ -100,7 +100,7 @@ cdef class GeneralMixtureModel(Model):
 	       [ 0.00004383,  0.99995617]])
 	>>> clf.distributions
 	array([ {
-	    "frozen" :false,
+	    "is_frozen" :false,
 	    "class" :"Distribution",
 	    "parameters" :[
 	        6.6571359101390755,
@@ -109,7 +109,7 @@ cdef class GeneralMixtureModel(Model):
 	    "name" :"NormalDistribution"
 	},
 	       {
-	    "frozen" :false,
+	    "is_frozen" :false,
 	    "class" :"Distribution",
 	    "parameters" :[
 	        1.498707696758334,
