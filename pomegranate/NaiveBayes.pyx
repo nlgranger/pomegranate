@@ -117,7 +117,7 @@ cdef class NaiveBayes( Model ):
 
 	def __init__( self, distributions=None, weights=None ):
 		if not callable(distributions) and not isinstance(distributions, (list, numpy.ndarray)):
-			raise ValueError("must either give initial distributions or constructor")
+			raise ValueError("must either give initial _distributions or constructor")
 
 		self.d = 0
 		self.hmm = 0
@@ -127,15 +127,15 @@ cdef class NaiveBayes( Model ):
 		else:
 			self.n = len(distributions)
 			if len(distributions) < 2:
-				raise ValueError("must have at least two distributions for general mixture models")
+				raise ValueError("must have at least two _distributions for general mixture models")
 
 			for dist in distributions:
 				if callable(dist):
-					raise TypeError("must have initialized distributions in list")
+					raise TypeError("must have initialized _distributions in list")
 				elif self.d == 0:
 					self.d = dist.d
 				elif self.d != dist.d:
-					raise TypeError("mis-matching dimensions between distributions in list")
+					raise TypeError("mis-matching dimensions between _distributions in list")
 				if dist.model == 'HiddenMarkovModel':
 					self.hmm = 1
 					self.keymap = dist.keymap
@@ -186,7 +186,7 @@ cdef class NaiveBayes( Model ):
 		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
+			_distributions, a single array may be passed in.
 
 		Returns
 		-------
@@ -214,7 +214,7 @@ cdef class NaiveBayes( Model ):
 		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
+			_distributions, a single array may be passed in.
 
 		Returns
 		-------
@@ -297,7 +297,7 @@ cdef class NaiveBayes( Model ):
 		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
+			_distributions, a single array may be passed in.
 
 		Returns
 		-------
@@ -390,7 +390,7 @@ cdef class NaiveBayes( Model ):
 			or the number of processes to use. Default is 1.
 
 		inertia : double, optional
-			Inertia used for the training the distributions.
+			Inertia used for the training the _distributions.
 
 		Returns
 		-------
@@ -482,7 +482,7 @@ cdef class NaiveBayes( Model ):
 		Parameters
 		----------
 		inertia : double, optional
-			Inertia used for the training the distributions.
+			Inertia used for the training the _distributions.
 
 		Returns
 		-------

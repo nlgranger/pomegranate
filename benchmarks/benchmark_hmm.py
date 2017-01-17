@@ -14,7 +14,7 @@ np.random.seed(0)
 random.seed(0)
 
 def global_alignment( match_distributions, insert_distribution ):
-	"""Create a global alignment HMM from match distributions.
+	"""Create a global alignment HMM from match _distributions.
 	"""
 
 	model = HiddenMarkovModel()

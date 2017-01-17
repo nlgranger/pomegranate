@@ -15,7 +15,7 @@ from .distributions import ConditionalProbabilityTable
 cdef class MarkovChain(object):
 	"""A Markov Chain.
 
-	Implemented as a series of conditional distributions, the Markov chain
+	Implemented as a series of conditional _distributions, the Markov chain
 	models P(X_i | X_i-1...X_i-k) for a k-th order Markov network. The
 	conditional dependencies are directly on the emissions, and not on a
 	hidden state as in a hidden Markov model.
@@ -23,14 +23,14 @@ cdef class MarkovChain(object):
 	Parameters
 	----------
 	distributions : list, shape (k+1)
-		A list of the conditional distributions which make up the markov chain.
+		A list of the conditional _distributions which make up the markov chain.
 		Begins with P(X_i), then P(X_i | X_i-1). For a k-th order markov chain
-		you must put in k+1 distributions.
+		you must put in k+1 _distributions.
 
 	Attributes
 	----------
 	distributions : list, shape (k+1)
-		The distributions which make up the chain.
+		The _distributions which make up the chain.
 
 	Examples
 	--------
@@ -95,7 +95,7 @@ cdef class MarkovChain(object):
 		length : int or Distribution
 			Give either the length of the sample you want to generate, or a
 			distribution object which will be randomly sampled for the length.
-			Continuous distributions will have their sample rounded to the
+			Continuous _distributions will have their sample rounded to the
 			nearest integer, minimum 1.
 
 		Returns
@@ -125,7 +125,7 @@ cdef class MarkovChain(object):
 	def fit(self, sequences, weights=None, inertia=0.0):
 		"""Fit the model to new data using MLE.
 
-		The underlying distributions are fed in their appropriate points and
+		The underlying _distributions are fed in their appropriate points and
 		weights and are updated.
 
 		Parameters
@@ -244,7 +244,7 @@ cdef class MarkovChain(object):
 
 		model = {
 		            'class' : 'MarkovChain',
-		            'distributions' : [ json.loads( d.to_json() )
+		            '_distributions' : [ json.loads( d.to_json() )
 		                                for d in self.distributions ]
 		        }
 
@@ -267,7 +267,7 @@ cdef class MarkovChain(object):
 
 		d = json.loads(s)
 		distributions = [ Distribution.from_json( json.dumps(j) )
-		                  for j in d['distributions'] ]
+		                  for j in d['_distributions'] ]
 		model = MarkovChain(distributions)
 		return model
 

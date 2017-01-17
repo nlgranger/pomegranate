@@ -1,7 +1,7 @@
 #!python2
 #cython: boundscheck=False
 #cython: cdivision=True
-# distributions.pyx
+# _distributions.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 # from libc.stdlib cimport calloc
@@ -9,26 +9,25 @@
 # from libc.string cimport memset
 # from libc.math cimport exp as cexp
 # from libc.math cimport fabs
-# from libc.math cimport sqrt as csqrt
+from libc.math cimport sqrt as csqrt
+from libc.math cimport log as clog
+from libc.math cimport M_PI as PI
 #
 # from collections import OrderedDict
 # import json
+cimport cython
 import numpy as np
 cimport numpy as np
 # import random
 # import scipy.special
 # import scipy.linalg
 # from scipy.linalg.cython_blas cimport dgemm
-import sys
 
-from .base import Model
 from .base cimport Model
+from .base import Model
 from .utils cimport _log
 # from .utils cimport lgamma
 # from .utils cimport mdot
-
-if sys.version_info[0] == 2:
-	from itertools import izip as zip
 
 
 # Define some useful constants
@@ -38,143 +37,172 @@ DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
 
-cdef class Distribution(Model):
-	"""Base class for probability distributions."""
+cdef class UniformDistribution(Model):
+    """A uniform real distribution between two boundaries."""
 
-	def _data2array(self, X, weights=None, dtype=np.float64):
-		# Concatenate samples into a single array for fast access
+    cdef public DOUBLE_t start
+    cdef public DOUBLE_t stop
+    cdef DOUBLE_t summaries_start
+    cdef DOUBLE_t summaries_stop
 
-		if self.is_vl:
-			durations = np.array([len(x) for x in X], dtype=np.int)
-			offsets = np.cumsum(durations)
+    def __cinit__(UniformDistribution self):
+        self.d = 1
+        self.is_vl = False
+        self.summaries_start = INF
+        self.summaries_stop = NEGINF
 
-			data = np.empty((np.sum(durations), self.d), dtype=dtype)
-			o = 0
-			for i, (x, d) in enumerate(zip(X, durations)):
-				data[o:o + d, :] = x.reshape((-1, self.d))
-				o = o + d
+    def __init__(self, DOUBLE_t start=0, DOUBLE_t stop=1):
+        """Return a Uniform real distribution spanning between start and
+        end inclusive. Defaults to $\mathcal{U}([0, 1])$.
+        """
+        self.start = min(start, stop)
+        self.stop = max(start, stop)
 
-			return X, len(X), offsets
+    def __str__(self):
+        return "UniformDistribution([{}, {}])".format(self.start, self.stop)
 
-		else:
-			if X.dtype != dtype:
-				X =X.astype(dtype)
-			X = X.reshape((-1, self.d))
-			return X, len(X), np.zeros((0,), dtype=np.int32)
+    def get_params(self, deep=True):
+        return {
+            'start': self.start,
+            'stop': self.stop
+        }
 
-	@staticmethod
-	def _weights2array(W, n, dtype=np.float64):
-		if W is None:  # weight everything 1
-			return np.ones((n,), dtype=dtype)
-		else:  # force whatever we have to be a Numpy array
-			return np.array(W, dtype=dtype)
+    def set_params(self, **kwargs):
+        self.__init__(**kwargs)
+
+    cdef void log_probability_fast(self, DOUBLE_t* X,
+                                   int n, int* offsets,
+                                   DOUBLE_t* log_probabilities) nogil:
+        cdef DOUBLE_t logp = - _log(self.stop - self.start)
+
+        cdef int i
+        for i in xrange(n):
+            if self.start <= X[i] <= self.stop:
+                log_probabilities[i] = logp
+            else:
+                log_probabilities[i] = NEGINF
+
+    def sample(self, n=None):
+        return np.random.uniform(self.start, self.stop, n)
+
+    def fit(self, X, y=None, weights=None, inertia=0, **kwargs):
+        if self.is_frozen or inertia == 1.0:
+            return
+
+        self.summarize(X, weights)
+        self.from_summaries(inertia)
+
+        return self
+
+    cdef void summarize_fast(self, DOUBLE_t* X, DOUBLE_t* weights,
+                                 int n, int* offsets) nogil:
+        cdef unsigned int i
+
+        for i in xrange(n):
+            if weights[i] > 0:
+                if X[i] < self.summaries_start:
+                    self.summaries_start = X[i]
+                elif X[i] > self.summaries_stop:
+                    self.summaries_stop = X[i]
+
+    def from_summaries(self, inertia=0.0):
+        if self.is_frozen:
+            return
+
+        self.start = self.start * inertia + (1-inertia) * self.summaries_start
+        self.stop = self.start * inertia + (1-inertia) * self.summaries_stop
+
+        self.summaries_start = INF
+        self.summaries_stop = NEGINF
 
 
-cdef class UniformDistribution(Distribution):
-	"""A uniform real distribution between two boundaries."""
+cdef struct NormpdfSummaries:
+    DOUBLE_t w_sum
+    DOUBLE_t x_sum
+    DOUBLE_t x2_sum
 
-	def __cinit__(UniformDistribution self, DOUBLE_t start=0, DOUBLE_t stop=1,
-	              bint frozen=False):
-		"""Return a Uniform real distribution spanning between start and
-		end inclusive. Defaults to the range [0, 1].
-		"""
-		if not start < stop:
-			raise ValueError("start should be strictly inferior to stop.")
 
-		self.d = 1
-		self.is_vl = False
-		self.is_frozen = frozen
-		self.start = start
-		self.stop = stop
-		self.summaries_start = INF
-		self.summaries_stop = NEGINF
+cdef class NormalDistribution(Model):
+    """A uniform real distribution between two boundaries."""
+    cdef public DOUBLE_t mu
+    cdef public DOUBLE_t two_sigma_square
 
-	def get_params(self, deep=True):
-		return {
-			'start': self.start,
-			'end': self.stop,
-			'is_frozen': self.is_frozen
-		}
+    cdef NormpdfSummaries summaries
 
-	def set_params(self, **kwargs):
-		self.__cinit__(**kwargs)
+    @property
+    def sigma(self):
+        return (self.two_sigma_square / 2) ** .5
 
-	def __reduce__( self ):
-		"""Serialize distribution for pickling."""
-		return self.__class__, (self.start, self.stop, self.is_frozen)
+    @sigma.setter
+    def sigma(self, value):
+        self.two_sigma_square = 2 * (value ** 2)
 
-	def log_probability(self, X):
-		X, n, offsets = self._data2array(X, dtype=np.float64)
+    def __cinit__(NormalDistribution self):
+        self.d = 1
+        self.is_vl = False
+        self.summaries.w_sum = 0
+        self.summaries.x_sum = 0
+        self.summaries.x2_sum = 0
 
-		cdef DOUBLE_t[:, :] X_view = X
-		cdef int n_view = n
-		cdef int[:] offsets_view = offsets
+    def __init__(NormalDistribution self,
+                 DOUBLE_t mu=0.0, DOUBLE_t sigma=1.0):
+        """Return a Normal distribution of mean _mu_ and variance _sigma_.
+        Defaults to $\mathcal{N}(0, 1)$.
+        """
 
-		res = np.empty((n,), dtype=np.float64)
-		cdef DOUBLE_t[:] res_view = res
+        self.mu = mu
+        self.sigma = sigma
 
-		with nogil:
-			self.log_probability_fast(X_view, n_view, offsets_view, res_view)
+    def __str__(self):
+        return "NormalDistribution({}, {})".format(self.mu, self.sigma)
 
-		return res
+    def get_params(self, deep=True):
+        return {
+            'mu': self.mu,
+            'sigma': self.sigma
+        }
 
-	cdef void log_probability_fast(self, DOUBLE_t[:, :] symbols,
-	                               int n, int[:] offsets,
-	                               DOUBLE_t[:] log_probabilities) nogil:
-		cdef DOUBLE_t logp = - _log(self.stop - self.start)
+    def set_params(self, **kwargs):
+        self.__init__(**kwargs)
 
-		cdef int i
-		for i in xrange(n):
-			if self.start <= symbols[i, 0] <= self.stop:
-				log_probabilities[i] = logp
-			else:
-				log_probabilities[i] = NEGINF
+    cdef void log_probability_fast(self, DOUBLE_t* X,
+                                   int n, int* offsets,
+                                   DOUBLE_t* log_probabilities) nogil:
+        cdef DOUBLE_t C = - .5 * clog(PI * self.two_sigma_square)
+        cdef DOUBLE_t v
+        for i in xrange(n):
+            v = - ( (X[i] - self.mu) ** 2 ) \
+                              / self.two_sigma_square
+            log_probabilities[i] = C + v
 
-	def sample(self, n=None):
-		return np.random.uniform(self.start, self.stop, n)
+    def sample(self, n=None):
+        return np.random.normal(self.mu, self.sigma, n)
 
-	def fit(self, X, y=None, weights=None, inertia=0, **kwargs):
-		self.summarize(X, weights)
-		self.from_summaries(inertia)
+    cdef void summarize_fast(self, DOUBLE_t* X, DOUBLE_t* weights,
+                             int n, int* offsets) nogil:
+        cdef unsigned int i
 
-		return self
+        for i in xrange(n):
+            self.summaries.w_sum += weights[i]
+            self.summaries.x_sum += weights[i] * X[i]
+            self.summaries.x2_sum += weights[i] * X[i] * X[i]
 
-	def summarize(self, X, weights=None):
-		if self.is_frozen:
-			return
-		if len(X) == 0:
-			raise ValueError("sample is empty")
+    cpdef from_summaries(self, inertia=0.0):
+        if self.is_frozen:
+            return
 
-		X, n, offsets = self._data2array(X)
-		cdef DOUBLE_t[:, :] X_ = X
-		cdef DOUBLE_t[:] weights_ = self._weights2array(weights, n)
-		cdef int n_ = n
-		cdef int[:] offsets_ = offsets
+        cdef DOUBLE_t x_expectation = \
+            self.summaries.x_sum / self.summaries.w_sum
+        cdef DOUBLE_t x2_expectation = \
+            self.summaries.x2_sum / self.summaries.w_sum
 
-		with nogil:
-			self.summarize_fast(X_, weights_, n_, offsets_)
+        self.mu = inertia * self.mu + (1 - inertia) * x_expectation
+        self.sigma = inertia * self.sigma + \
+                     (1 - inertia) * csqrt(x2_expectation - x_expectation ** 2)
 
-	cdef void summarize_fast(self, DOUBLE_t[:, :] X, DOUBLE_t[:] weights,
-		                     int n, int[:] offsets) nogil:
-		cdef unsigned int i
-
-		for i in xrange(n):
-			if weights[i] > 0:
-				if X[i, 0] < self.summaries_start:
-					self.summaries_start = X[i, 0]
-				elif X[i, 0] > self.summaries_stop:
-					self.summaries_stop = X[i, 0]
-
-	def from_summaries(self, inertia=0.0):
-		if self.is_frozen:
-			return
-
-		self.start = self.start * inertia + (1-inertia) * self.summaries_start
-		self.stop = self.start * inertia + (1-inertia) * self.summaries_stop
-
-		# Reset summaries
-		self.summaries_start = INF
-		self.summaries_stop = NEGINF
+        self.summaries.w_sum = 0
+        self.summaries.x_sum = 0
+        self.summaries.x2_sum = 0
 
 # cdef class BernoulliDistribution( Distribution ):
 # 	"""A Bernoulli distribution describing the probability of a binary variable."""
@@ -1585,7 +1613,7 @@ cdef class UniformDistribution(Distribution):
 #
 # cdef class MultivariateDistribution( Distribution ):
 # 	"""
-# 	An object to easily identify multivariate distributions such as tables.
+# 	An object to easily identify multivariate _distributions such as tables.
 # 	"""
 #
 # 	pass
@@ -1596,7 +1624,7 @@ cdef class UniformDistribution(Distribution):
 # 	is independent of the others. Distributions can be any type, such as
 # 	having an exponential represent the duration of an event, and a normal
 # 	represent the mean of that event. Observations must now be tuples of
-# 	a length equal to the number of distributions passed in.
+# 	a length equal to the number of _distributions passed in.
 #
 # 	s1 = IndependentComponentsDistribution([ ExponentialDistribution( 0.1 ),
 # 									NormalDistribution( 5, 2 ) ])
@@ -1605,23 +1633,23 @@ cdef class UniformDistribution(Distribution):
 #
 # 	property parameters:
 # 		def __get__( self ):
-# 			return [ self.distributions.tolist(), np.exp(self.weights).tolist() ]
+# 			return [ self._distributions.tolist(), np.exp(self.weights).tolist() ]
 # 		def __set__( self, parameters ):
-# 			self.distributions = np.asarray( parameters[0], dtype=np.object_ )
+# 			self._distributions = np.asarray( parameters[0], dtype=np.object_ )
 # 			self.weights = np.log( parameters[1] )
 #
-# 	def __cinit__( self, distributions=[], weights=None, frozen=False ):
+# 	def __cinit__( self, _distributions=[], weights=None, frozen=False ):
 # 		"""
-# 		Take in the distributions and appropriate weights. If no weights
+# 		Take in the _distributions and appropriate weights. If no weights
 # 		are provided, a uniform weight of 1/n is provided to each point.
 # 		Weights are scaled so that they sum to 1.
 # 		"""
 #
-# 		self.distributions = np.array( distributions )
-# 		self.distributions_ptr = <void**> self.distributions.data
+# 		self._distributions = np.array( _distributions )
+# 		self.distributions_ptr = <void**> self._distributions.data
 #
-# 		self.d = len(distributions)
-# 		self.discrete = isinstance(distributions[0], DiscreteDistribution)
+# 		self.d = len(_distributions)
+# 		self.discrete = isinstance(_distributions[0], DiscreteDistribution)
 #
 # 		if weights is not None:
 # 			weights = np.array( weights, dtype=np.float64 )
@@ -1635,7 +1663,7 @@ cdef class UniformDistribution(Distribution):
 #
 # 	def __reduce__( self ):
 # 		"""Serialize the distribution for pickle."""
-# 		return self.__class__, (self.distributions, np.exp(self.weights), self.frozen)
+# 		return self.__class__, (self._distributions, np.exp(self.weights), self.frozen)
 #
 # 	def log_probability( self, symbol ):
 # 		"""
@@ -1651,7 +1679,7 @@ cdef class UniformDistribution(Distribution):
 # 		if self.discrete:
 # 			logp = 0
 # 			for i in range(self.d):
-# 				logp += self.distributions[i].log_probability(symbol[i]) + self.weights[i]
+# 				logp += self._distributions[i].log_probability(symbol[i]) + self.weights[i]
 #
 # 		else:
 # 			with nogil:
@@ -1700,7 +1728,7 @@ cdef class UniformDistribution(Distribution):
 # 		"""
 # 		Take in an array of items and reduce it down to summary statistics. For
 # 		a multivariate distribution, this involves just passing the appropriate
-# 		data down to the appropriate distributions.
+# 		data down to the appropriate _distributions.
 # 		"""
 #
 # 		items, weights = weight_set( items, weights )
@@ -1722,7 +1750,7 @@ cdef class UniformDistribution(Distribution):
 # 	def from_summaries( self, inertia=0.0 ):
 # 		"""
 # 		Use the collected summary statistics in order to update the
-# 		distributions.
+# 		_distributions.
 # 		"""
 #
 # 		# If the distribution is is_frozen, don't bother with any calculation
@@ -1742,8 +1770,8 @@ cdef class UniformDistribution(Distribution):
 # 		return json.dumps( {
 # 			'class' : self.__class__.__module__ + \
 # 			          "." + self.__class__.__name__,
-# 			'distributions' : [ json.loads( dist.to_json() )
-# 							    for dist in self.distributions ],
+# 			'_distributions' : [ json.loads( dist.to_json() )
+# 							    for dist in self._distributions ],
 # 			'weights' : np.exp(self.weights).tolist(),
 # 			'is_frozen' : self.frozen
 # 			})
@@ -1874,7 +1902,7 @@ cdef class UniformDistribution(Distribution):
 #
 # 		if self.d != d:
 # 			raise ValueError("trying to fit data with {} dimensions to distribution \
-# 				with {} distributions".format(d, self.d))
+# 				with {} _distributions".format(d, self.d))
 #
 # 		with nogil:
 # 			self._summarize( items_p, weights_p, n )
@@ -1987,7 +2015,7 @@ cdef class UniformDistribution(Distribution):
 #
 #
 # cdef class DirichletDistribution( MultivariateDistribution ):
-# 	"""A Dirichlet distribution, usually a prior for the multinomial distributions."""
+# 	"""A Dirichlet distribution, usually a prior for the multinomial _distributions."""
 #
 # 	property parameters:
 # 		def __get__( self ):
@@ -2251,7 +2279,7 @@ cdef class UniformDistribution(Distribution):
 # 		This will turn a conditional probability table into a joint
 # 		probability table. If the data is already a joint, it will likely
 # 		mess up the data. It does so by scaling the parameters the probabilities
-# 		by the parent distributions.
+# 		by the parent _distributions.
 # 		"""
 #
 # 		neighbor_values = neighbor_values or self.parents+[None]

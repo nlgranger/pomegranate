@@ -6,17 +6,6 @@ cimport numpy as np
 from .base cimport Model, DOUBLE_t
 
 
-cdef class Distribution(Model):
-	cdef int blah
-
-
-cdef class UniformDistribution(Distribution):
-	cdef public DOUBLE_t start
-	cdef public DOUBLE_t stop
-	cdef DOUBLE_t summaries_start
-	cdef DOUBLE_t summaries_stop
-
-
 # cdef class BernoulliDistribution( Distribution ):
 # 	cdef double p
 # 	cdef double* logp
@@ -70,14 +59,14 @@ cdef class UniformDistribution(Distribution):
 #
 # cdef class MixtureDistribution( Distribution ):
 # 	cdef double* weights_p
-# 	cdef numpy.ndarray distributions, weights
+# 	cdef numpy.ndarray _distributions, weights
 # 	cdef int n
 #
 # cdef class MultivariateDistribution( Distribution ):
 # 	pass
 #
 # cdef class IndependentComponentsDistribution( MultivariateDistribution ):
-# 	cdef public numpy.ndarray distributions, weights
+# 	cdef public numpy.ndarray _distributions, weights
 # 	cdef int discrete
 # 	cdef double* weights_ptr
 # 	cdef void** distributions_ptr

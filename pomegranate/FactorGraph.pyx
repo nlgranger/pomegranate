@@ -197,7 +197,7 @@ cdef class FactorGraph( GraphModel ):
 	def predict_proba( self, data, max_iterations=10, verbose=False ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
-		This calculates the marginal probability distributions for each state given
+		This calculates the marginal probability _distributions for each state given
 		the evidence provided through loopy belief propogation. Loopy belief
 		propogation is an approximate algorithm which is exact for certain graph
 		structures.
@@ -228,7 +228,7 @@ cdef class FactorGraph( GraphModel ):
 
 		n, m = len( self.states ), len( self.transitions )
 
-		# Save our original distributions so that we don't permanently overwrite
+		# Save our original _distributions so that we don't permanently overwrite
 		# them as we do belief propogation.
 		distributions = numpy.empty( n, dtype=Distribution )
 
@@ -248,7 +248,7 @@ cdef class FactorGraph( GraphModel ):
 		out_messages = numpy.empty( m, dtype=Distribution )
 		in_messages = numpy.empty( m, dtype=Distribution )
 
-		# Explicitly calculate the distributions at each round so we can test
+		# Explicitly calculate the _distributions at each round so we can test
 		# for convergence. 
 		prior_distributions = distributions.copy()
 		current_distributions = numpy.empty( m, dtype=Distribution )
@@ -259,7 +259,7 @@ cdef class FactorGraph( GraphModel ):
 		# the factor to the marginal and set it to the marginal.
 		for i, state in enumerate( self.states ):
 			# Go through and set edges which are encoded as leaving the
-			# marginal distributions as the marginal distribution
+			# marginal _distributions as the marginal distribution
 			if self.marginals[i] == 1:
 				for k in xrange( self.edge_count[i], self.edge_count[i+1] ):
 					out_messages[k] = distributions[i]
@@ -365,7 +365,7 @@ cdef class FactorGraph( GraphModel ):
 			if done == 1:
 				break
 
-			# Set this list of distributions to the prior observations of the
+			# Set this list of _distributions to the prior observations of the
 			# marginals
 			prior_distributions = current_distributions.copy()
 

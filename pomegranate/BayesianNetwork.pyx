@@ -192,7 +192,7 @@ cdef class BayesianNetwork( GraphModel ):
 		# distribution, otherwise add in the appropriate marginal and
 		# conditional distribution as separate nodes.
 		for i, state in enumerate( self.states ):
-			# For every state (ones with conditional distributions or those
+			# For every state (ones with conditional _distributions or those
 			# encoding marginals) we need to create a marginal node in the
 			# underlying factor graph. 
 			keys = state.distribution.keys()
@@ -357,7 +357,7 @@ cdef class BayesianNetwork( GraphModel ):
 	def predict_proba( self, data={}, max_iterations=100, check_input=True ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
-		This calculates the marginal probability distributions for each state given
+		This calculates the marginal probability _distributions for each state given
 		the evidence provided through loopy belief propogation. Loopy belief
 		propogation is an approximate algorithm which is exact for certain graph
 		structures.
@@ -447,7 +447,7 @@ cdef class BayesianNetwork( GraphModel ):
 		Parameters
 		----------
 		inertia : double, optional
-			The inertia for updating the distributions, passed along to the
+			The inertia for updating the _distributions, passed along to the
 			distribution method. Default is 0.0.
 
 		Returns
@@ -462,8 +462,8 @@ cdef class BayesianNetwork( GraphModel ):
 		"""Fit the model to data using MLE estimates.
 
 		Fit the model to the data by updating each of the components of the model,
-		which are univariate or multivariate distributions. This uses a simple
-		MLE estimate to update the distributions according to their summarize or
+		which are univariate or multivariate _distributions. This uses a simple
+		MLE estimate to update the _distributions according to their summarize or
 		fit methods.
 
 		This is a wrapper for the summarize and from_summaries methods.
@@ -478,7 +478,7 @@ cdef class BayesianNetwork( GraphModel ):
 			The weight of each sample as a positive double. Default is None.
 
 		inertia : double, optional
-			The inertia for updating the distributions, passed along to the
+			The inertia for updating the _distributions, passed along to the
 			distribution method. Default is 0.0.
 
 		Returns

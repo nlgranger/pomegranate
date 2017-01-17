@@ -8,7 +8,7 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.string cimport memcpy
 
-from .base cimport Model
+# from .base cimport Model
 
 import json
 import numpy
@@ -19,7 +19,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 
-cdef class Kmeans(Model):
+cdef class Kmeans(object):
 	"""A kmeans model.
 
 	Kmeans is not a probabilistic model, but it is used in the kmeans++

@@ -35,6 +35,7 @@ elif os.name == 'posix':
 
     pyximport.install()
 
+from .base import Model
 # from .hmm import *
 # from .kmeans import *
 # from .BayesianNetwork import *

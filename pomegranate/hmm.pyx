@@ -161,6 +161,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 	cdef numpy.ndarray distributions
 	cdef void** distributions_ptr
 
+	@property
+	def transitionmat():
+
+
 	def __init__( self, name=None, start=None, end=None ):
 		# Save the name or make up a name.
 		self.name = str(name) or str( id(self) )
@@ -502,10 +506,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		return HiddenMarkovModel.from_json( self.to_json() )
 
 	def freeze_distributions( self ):
-		"""Freeze all the distributions in model.
+		"""Freeze all the _distributions in model.
 
 		Upon training only edges will be updated. The parameters of
-		distributions will not be affected.
+		_distributions will not be affected.
 
 		Parameters
 		----------
@@ -521,9 +525,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 				state.distribution.freeze()
 
 	def thaw_distributions( self ):
-		"""Thaw all distributions in the model.
+		"""Thaw all _distributions in the model.
 
-		Upon training distributions will be updated again.
+		Upon training _distributions will be updated again.
 
 		Parameters
 		----------
@@ -1219,7 +1223,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		check_input : bool, optional
 			Check to make sure that all emissions fall under the support of
-			the emission distributions. Default is True.
+			the emission _distributions. Default is True.
 
 		Returns
 		-------
@@ -2190,7 +2194,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		return r_ndarray
 
-	cdef void _predict_log_proba( self, double* sequence, double* r, int n, 
+	cdef void _predict_log_proba( self, double* sequence, double* r, int n,
 		double* emissions ) nogil:
 		cdef int i, k, l, li
 		cdef int m = self.n_states, dim = self.d
@@ -2539,7 +2543,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				weights_ndarray = numpy.ones(len(sequences), dtype='float64')
 			else:
 				weights_ndarray = numpy.array(weights, dtype='float64')
-			
+
 			for i in range( len(sequences) ):
 				try:
 					sequences[i] = numpy.array( sequences[i], dtype='float64' )
@@ -2833,7 +2837,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		Parameters
 		----------
 		inertia : double or None, optional
-			The inertia to use for both edges and distributions without
+			The inertia to use for both edges and _distributions without
 			needing to set both of them. If None, use the values passed
 			in to those variables. Default is None.
 
@@ -2876,7 +2880,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 	cdef void _from_summaries(self, double transition_pseudocount,
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
-		"""Update the transition matrix and emission distributions."""
+		"""Update the transition matrix and emission _distributions."""
 
 		cdef int k, i, l, li, m = len( self.states ), n, idx
 		cdef int* in_edges = self.in_edge_count
@@ -3153,7 +3157,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			The probabilities of each state transitioning to each other state.
 
 		distributions : array-like, shape (n_states)
-			The distributions for each state. Silent states are indicated by
+			The _distributions for each state. Silent states are indicated by
 			using None instead of a distribution object.
 
 		starts : array-like, shape (n_states)
@@ -3185,12 +3189,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 		Examples
 		--------
 		matrix = [ [ 0.4, 0.5 ], [ 0.4, 0.5 ] ]
-		distributions = [NormalDistribution(1, .5), NormalDistribution(5, 2)]
+		_distributions = [NormalDistribution(1, .5), NormalDistribution(5, 2)]
 		starts = [ 1., 0. ]
 		ends = [ .1., .1 ]
 		state_names= [ "A", "B" ]
 
-		model = Model.from_matrix( matrix, distributions, starts, ends,
+		model = Model.from_matrix( matrix, _distributions, starts, ends,
 			state_names, name="test_model" )
 		"""
 
