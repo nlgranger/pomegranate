@@ -1,35 +1,27 @@
-from __future__ import (division)
-from nose.tools import with_setup
-from nose.tools import assert_equal, assert_almost_equal, assert_not_equal, \
-    assert_less_equal
+from __future__ import division
 import pickle as pkl
 import numpy as np
+from numpy.testing import assert_array_almost_equal
+from nose.tools import with_setup, assert_equal, assert_almost_equal, \
+    assert_less_equal, assert_not_equal
 
-from pomegranate import Model, NormalDistribution, UniformDistribution
-
-
-def discrete_equality(x, y, z=8):
-    '''
-    Test to see if two discrete _distributions are equal to each other to
-    z decimal points.
-    '''
-
-    xd, yd = x.parameters[0], y.parameters[0]
-    for key, value in xd.items():
-        if round(yd[key], z) != round(value, z):
-            return False
-    return True
+from pomegranate.distributions import UniformReal, Normal
 
 
+def setup():
+    np.random.seed(1809733196)
+
+
+@with_setup(setup)
 def test_uniform():
-    d = UniformDistribution(0, 10)
+    d = UniformReal(0, 10)
 
-    assert_almost_equal(d.log_probability(2.34), -2.3025850929940455, 8)
-    assert_equal(d.log_probability(2), d.log_probability(8))
-    assert_equal(d.log_probability(10), d.log_probability(3.4))
-    assert_equal(d.log_probability(1.7), d.log_probability(9.7))
-    assert_equal(d.log_probability(10.0001), float("-inf"))
-    assert_equal(d.log_probability(-0.0001), float("-inf"))
+    assert_array_almost_equal(
+        d.log_probability([2.34, 2, 10, 1.7, 10.0001, -0.0001]),
+        np.array([-2.3025850929940455, d.log_probability(8),
+                  d.log_probability(3.4), d.log_probability(9.7),
+                  float("-inf"), float("-inf")]),
+        8)
 
     for i in range(10):
         data = np.random.randn(100) * 100
@@ -43,109 +35,101 @@ def test_uniform():
         assert_less_equal(minimum, sample)
         assert_less_equal(sample,  maximum)
 
-    d = UniformDistribution(0, 10)
-    # d.fit([-5, 20], inertia=0.5)
-    #
-    # assert_equal(d.start, -2.5)
-    # assert_equal(d.stop, 15)
-
+    d = UniformReal(0, 10)
     d.fit([-100, 100], inertia=1.0)
-
     assert_equal(d.start, 0)
     assert_equal(d.stop, 10)
 
-    # d.summarize([0, 50, 2, 24, 28])
-    # d.summarize([-20, 7, 8, 4])
-    # d.from_summaries(inertia=0.75)
-    #
-    # assert_equal(d.start, -6.875)
-    # assert_equal(d.stop, 23.75)
-
-    d.summarize([0, 100])
     d.summarize([100, 200])
+    d.summarize([0, 100])
     d.from_summaries()
 
     assert_equal(d.start, 0)
     assert_equal(d.stop, 200)
 
-    d.freeze()
+    d.is_frozen = True
     d.fit([0, 1, 6, 7, 8, 3, 4, 5, 2])
     assert_equal([d.start, d.stop], [0, 200])
 
-    d.thaw()
+    d.is_frozen = False
     d.fit([0, 1, 6, 7, 8, 3, 4, 5, 2])
     assert_equal([d.start, d.stop], [0, 8])
 
-    e = Model.from_json(d.to_json())
-    assert isinstance(e, UniformDistribution)
-    assert_equal([d.start, d.stop], [0, 8])
-
-    f = pkl.loads(pkl.dumps(e))
-    assert isinstance(e, UniformDistribution)
+    f = pkl.loads(pkl.dumps(d))
+    assert isinstance(f, UniformReal)
     assert_equal([f.start, f.stop], [0, 8])
 
 
+@with_setup(setup)
 def test_normal():
-    d = NormalDistribution(5, 2)
-    e = NormalDistribution(5., 2.)
+    d = Normal(5, 2)
+    e = Normal(5., 2.)
 
-    assert_almost_equal(d.log_probability(5), -1.61208571, 8)
-    assert_equal(d.log_probability(5), e.log_probability(5))
-    assert_equal(d.log_probability(5), d.log_probability(5.))
-
-    assert_almost_equal(d.log_probability(0), -4.737085713764219)
-    assert_equal(d.log_probability(0), e.log_probability(0.))
+    assert_array_almost_equal(
+        d.log_probability([5, 5, 5, 0]),
+        [-1.61208571, e.log_probability([5]), e.log_probability([5.0]),
+         -4.737085713764219],
+        8)
 
     d.fit([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4])
 
     assert_almost_equal(d.mu, 4.9167, 4)
     assert_almost_equal(d.sigma, 0.7592, 4)
-    assert_not_equal(d.log_probability(4), e.log_probability(4))
-    assert_almost_equal(d.log_probability(4), -1.3723678499651766)
-    assert_almost_equal(d.log_probability(18), -149.13140399454429)
-    assert_almost_equal(d.log_probability(1e8), -8674697942168743.0, -4)
+    assert_not_equal(d.log_probability(4)[0], e.log_probability(4)[0])
+    assert_array_almost_equal(
+        d.log_probability([4, 18, 1e8]),
+        [-1.3723678499651766, -149.13140399454429, -8674697942168743.0],
+        4)
 
-    d = NormalDistribution(5, 1e-10)
+    d = Normal(5, 1e-10)
     assert_almost_equal(d.log_probability(1e100), -4.9999999999999994e+219)
 
     d.fit([0, 2, 3, 2, 100], weights=[0, 5, 2, 3, 200])
-    assert_equal(round(d.mu, 4), 95.3429)
-    assert_equal(round(d.sigma, 4), 20.8276)
-    assert_equal(round(d.log_probability(50), 8), -6.32501194)
+    assert_almost_equal(d.mu, 95.3429, 4)
+    assert_almost_equal(d.sigma, 20.8276, 4)
+    assert_almost_equal(d.log_probability(50)[0], -6.32501194, 8)
 
-    d = NormalDistribution(5, 2)
+    d = Normal(5, 2)
     d.fit([0, 5, 3, 5, 7, 3, 4, 5, 2], inertia=0.5)
 
-    assert_equal(round(d.mu, 4), 4.3889)
-    assert_equal(round(d.sigma, 4), 1.9655)
+    assert_almost_equal(d.mu, 4.3889, 4)
+    assert_almost_equal(d.sigma, 1.9655, 4)
 
     d.summarize([0, 2], weights=[0, 5])
     d.summarize([3, 2], weights=[2, 3])
     d.summarize([100], weights=[200])
     d.from_summaries()
 
-    assert_equal(round(d.mu, 4), 95.3429)
-    assert_equal(round(d.sigma, 4), 20.8276)
+    assert_almost_equal(d.mu, 95.3429, 4)
+    assert_almost_equal(d.sigma, 20.8276, 4)
 
-    d.freeze()
+    d.is_frozen = True
     d.fit([0, 1, 1, 2, 3, 2, 1, 2, 2])
-    assert_equal(round(d.mu, 4), 95.3429)
-    assert_equal(round(d.sigma, 4), 20.8276)
+    assert_almost_equal(d.mu, 95.3429, 4)
+    assert_almost_equal(d.sigma, 20.8276, 4)
 
-    d.thaw()
+    d.is_frozen = False
     d.fit([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4])
-    assert_equal(round(d.mu, 4), 4.9167)
-    assert_equal(round(d.sigma, 4), 0.7592)
+    assert_almost_equal(d.mu, 4.9167, 4)
+    assert_almost_equal(d.sigma, 0.7592, 4)
 
-    e = Model.from_json(d.to_json())
-    assert isinstance(e, NormalDistribution)
-    assert_equal(round(e.mu, 4), 4.9167)
-    assert_equal(round(e.sigma, 4), 0.7592)
+    f = pkl.loads(pkl.dumps(d))
+    assert isinstance(f, Normal)
+    assert_almost_equal(f.mu, d.mu, 4)
+    assert_almost_equal(f.sigma, d.sigma, 4)
 
-    f = pkl.loads(pkl.dumps(e))
-    assert isinstance(e, NormalDistribution)
-    assert_equal(round(f.mu, 4), 4.9167)
-    assert_equal(round(f.sigma, 4), 0.7592)
+
+# def discrete_equality(x, y, z=8):
+#     '''
+#     Test to see if two discrete _distributions are equal to each other to
+#     z decimal points.
+#     '''
+#
+#     xd, yd = x.parameters[0], y.parameters[0]
+#     for key, value in xd.items():
+#         if np.round(yd[key], z) != np.round(value, z):
+#             return False
+#     return True
 
 
 # @with_setup(setup, teardown)
@@ -209,7 +193,7 @@ def test_normal():
 #
 # @with_setup(setup, teardown)
 # def test_lognormal():
-#     d = LogNormalDistribution(5, 2)
+#     d = LogNormal(5, 2)
 #     assert_equal(round(d.log_probability(5), 4), -4.6585)
 #
 #     d.fit([5.1, 5.03, 4.98, 5.05, 4.91, 5.2, 5.1, 5., 4.8, 5.21])
@@ -225,12 +209,12 @@ def test_normal():
 #     assert_equal(round(d.parameters[1], 4), 0.0237)
 #
 #     e = Distribution.from_json(d.to_json())
-#     assert_equal(e.name, "LogNormalDistribution")
+#     assert_equal(e.name, "LogNormal")
 #     assert_equal(round(e.parameters[0], 4), 1.6167)
 #     assert_equal(round(e.parameters[1], 4), 0.0237)
 #
 #     f = pickle.loads(pickle.dumps(e))
-#     assert_equal(f.name, "LogNormalDistribution")
+#     assert_equal(f.name, "LogNormal")
 #     assert_equal(round(f.parameters[0], 4), 1.6167)
 #     assert_equal(round(f.parameters[1], 4), 0.0237)
 #
@@ -424,12 +408,12 @@ def test_normal():
 # @with_setup(setup, teardown)
 # def test_independent():
 #     d = IndependentComponentsDistribution(
-#         [NormalDistribution(5, 2), ExponentialDistribution(2)])
+#         [Normal(5, 2), ExponentialDistribution(2)])
 #
 #     assert_equal(round(d.log_probability((4, 1)), 4), -3.0439)
 #     assert_equal(round(d.log_probability((100, 0.001)), 4), -1129.0459)
 #
-#     d = IndependentComponentsDistribution([NormalDistribution(5, 2),
+#     d = IndependentComponentsDistribution([Normal(5, 2),
 #                                            ExponentialDistribution(2)],
 #                                           weights=[18., 1.])
 #
@@ -442,8 +426,8 @@ def test_normal():
 #     assert_equal(round(d.parameters[0][0].parameters[1], 4), 0.2417)
 #     assert_equal(round(d.parameters[0][1].parameters[0], 4), 0.6098)
 #
-#     d = IndependentComponentsDistribution([NormalDistribution(5, 2),
-#                                            UniformDistribution(0, 10)])
+#     d = IndependentComponentsDistribution([Normal(5, 2),
+#                                            UniformReal(0, 10)])
 #     d.fit([(0, 0), (5, 0), (3, 0), (5, -5), (7, 0),
 #            (3, 0), (4, 0), (5, 0), (2, 20)], inertia=0.5)
 #
@@ -462,8 +446,8 @@ def test_normal():
 #     assert_not_equal(d.parameters[0][1].parameters[0], -2.5)
 #     assert_not_equal(d.parameters[0][1].parameters[1], 15)
 #
-#     d = IndependentComponentsDistribution([NormalDistribution(5, 2),
-#                                            UniformDistribution(0, 10)])
+#     d = IndependentComponentsDistribution([Normal(5, 2),
+#                                            UniformReal(0, 10)])
 #
 #     d.summarize([(0, 0), (5, 0), (3, 0)])
 #     d.summarize([(5, -5), (7, 0)])

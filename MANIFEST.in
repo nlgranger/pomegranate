@@ -1,2 +1,4 @@
-include *.txt
-include pomegranate/*
+include README.md
+include docs/*.rst
+include examples/*
+include tests/*
